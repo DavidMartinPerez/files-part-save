@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import UploadFile from './lib/UploadFile.svelte';
 
   // Input del html
   let input;
@@ -19,39 +20,63 @@
   })
 
   // Función para subir el archivo por fragmentos
-  function uploadFile(file) {
+  async function uploadFile(file) {
 
     // URL del endpoint del servidor
     const url: string = '/api/files';
 
-    // Crear una instancia del objeto FormData
-    const formData = new FormData();
+    //Inicializamos las variables que nos servirán para ir 
+    let start = 0;
+    let end = chunkSize;
+    let chunkIndex = 0;
 
-    formData.append('file', file); // Agregar el archivo al FormData
+    //Fichero troceado
+    const formsDataChunk = [];
 
-    //Esta petición se tiene que extrapolar a angular
-    fetch(url, {
-      method: 'POST',
-      body: formData
-    })
-    .then(response => {
-      if (response.ok) {
-        // El archivo se ha subido exitosamente
-        console.log('Archivo subido correctamente');
-      } else {
-        // Ocurrió un error al subir el archivo
-        console.error('Error al subir el archivo');
+    //Iteramos hasta que hayamos recorrido todo el file
+    while (start < file.size) {
+
+      // Obtener el fragmento del archivo NOTA: Esto pasa de file a binary
+      const chunk = file.slice(start, end);
+
+      // Crear una instancia del objeto FormData
+      const formData = new FormData();
+      formData.append('chunk', chunk);
+      formData.append('chunkIndex', `${chunkIndex}`);
+
+      //Mostramos a forma de log los datos
+      for (const value of formData.values()) {
+        console.log(value);
       }
+
+      //Guardamos los trozos de archivos como FormData
+      formsDataChunk.push(formData)
+
+      // Actualizar los índices y posiciones para el siguiente fragmento
+      start = end;
+      end = start + chunkSize;
+      chunkIndex++;
+    }
+
+    console.log(formsDataChunk)
+
+    formsDataChunk.forEach(async (formData) => {
+      const response = await fetch(url, {
+          method: 'POST',
+          body: formData
+      })
+      response.ok
+        ? console.log('Guardado correctamente')
+        : console.log('Error')
     })
-    .catch(error => {
-      console.error('Error de red:', error);
-    });
 }
 </script>
 
 <main>
   <h1>Probando a enviar ficheros en partesitas</h1>
   <input type="file" bind:this="{input}"/>
+  <hr>
+  <UploadFile></UploadFile>
 </main>
 
 <style>
